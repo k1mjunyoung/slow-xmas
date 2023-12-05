@@ -22,7 +22,4 @@ public class LoginController {
 
         return "/main";
     }
-
-
-
 }
