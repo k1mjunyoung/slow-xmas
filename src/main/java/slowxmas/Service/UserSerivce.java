@@ -9,21 +9,28 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import org.springframework.beans.factory.annotation.Value;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import slowxmas.Entity.User;
+import slowxmas.Repository.UserRepository;
 
 @Service
+@RequiredArgsConstructor
 public class UserSerivce {
-    @Value("${kakao.rest-api-key}")
-    String REST_API_KEY;
+    static final String REST_API_KEY = "55ab9b90f6fe66c4c4543273c83d5145";
 
-    @Value("${kakao.redirect-url}")
-    String REDIRECT_URL;
+    static final String REDIRECT_URL = "http://localhost:8080/login/kakao/callback";
+
+    static final String ACCESS_TOKEN_REQUEST_URL = "https://kauth.kakao.com/oauth/token";
+
+    static final String USER_INFO_REQUEST_URL = "https://kapi.kakao.com/v2/user/me";
+
+    private final UserRepository userRepository;
 
     public String getKakaoAccessToken(String code) {
         String accessToken = "";
         String refreshToken = "";
-        String requestUrl = "https://kauth.kakao.com/oauth/token";
+        String requestUrl = ACCESS_TOKEN_REQUEST_URL;
 
         try {
             URL url = new URL(requestUrl);
@@ -44,7 +51,7 @@ public class UserSerivce {
             bw.flush();
 
             int responseCode = conn.getResponseCode();
-            System.out.println("responseCode = " + responseCode);
+            System.out.println("[getKakaoAccessToken] responseCode = " + responseCode);
 
             BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
             String line = "";
@@ -53,7 +60,7 @@ public class UserSerivce {
             while((line = br.readLine()) != null) {
                 result += line;
             }
-            System.out.println("responseBody: " + result);
+            System.out.println("[getKakaoAccessToken] responseBody: " + result);
 
             JsonParser parser = new JsonParser();
             JsonElement element = parser.parse(result);
@@ -61,12 +68,11 @@ public class UserSerivce {
             accessToken = element.getAsJsonObject().get("access_token").getAsString();
             refreshToken = element.getAsJsonObject().get("refresh_token").getAsString();
 
-            System.out.println("accessToken = " + accessToken);
-            System.out.println("refreshToken = " + refreshToken);
+            System.out.println("[getKakaoAccessToken] accessToken = " + accessToken);
+            System.out.println("[getKakaoAccessToken] refreshToken = " + refreshToken);
 
             br.close();
             bw.close();
-
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -74,8 +80,10 @@ public class UserSerivce {
         return accessToken;
     }
 
-    public void createKakaoUser(String token) {
-        String requestUrl = "https://kapi.kakao.com/v2/user/me";
+    public User getKakaoUserInfo(String token) {
+        String requestUrl = USER_INFO_REQUEST_URL;
+
+        User user = new User();
 
         try {
             URL url = new URL(requestUrl);
@@ -86,7 +94,7 @@ public class UserSerivce {
             conn.setRequestProperty("Authorization" , "Bearer " + token);
 
             int responseCode = conn.getResponseCode();
-            System.out.println("responseCode = " + responseCode);
+            System.out.println("[getKakaoUserInfo] responseCode = " + responseCode);
 
             BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
             String line = "";
@@ -95,26 +103,42 @@ public class UserSerivce {
             while ((line = br.readLine()) != null) {
                 result += line;
             }
-            System.out.println("response body : " + result);
+            System.out.println("[getKakaoUserInfo] response body: " + result);
 
             JsonParser parser = new JsonParser();
             JsonElement element = parser.parse(result);
 
             Long id = element.getAsJsonObject().get("id").getAsLong();
-            String nickname = "";
+            String nickname = element.getAsJsonObject().get("properties").getAsJsonObject().get("nickname").getAsString();
 
-            nickname = element.getAsJsonObject().get("properties").getAsJsonObject().get("nickname").getAsString();
-            /*boolean hasEmail = element.getAsJsonObject().get("kakao_account").getAsJsonObject().get("name").getAsBoolean();
-            if (hasEmail) {
-                nickname = element.getAsJsonObject().get("kakao_account").getAsJsonObject().get("email").getAsString();
-            }*/
+            System.out.println("[getKakaoUserInfo] id = " + id);
+            System.out.println("[getKakaoUserInfo] nickname = " + nickname);
 
-            System.out.println("id = " + id);
-            System.out.println("email = " + nickname);
+            if (this.userRepository.findById(id).isEmpty()) {
+                saveKakaoUser(id, nickname);
+            }
+
+            user = loadKakaoUser(id);
 
             br.close();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+
+        return user;
+    }
+
+    public void saveKakaoUser(Long id, String nickname) {
+        User user = new User();
+
+        user.setKakaoId(id);
+        user.setNickname(nickname);
+        this.userRepository.save(user);
+    }
+
+    public User loadKakaoUser(Long id) {
+        User user = this.userRepository.findByKakaoId(id);
+
+        return user;
     }
 }
