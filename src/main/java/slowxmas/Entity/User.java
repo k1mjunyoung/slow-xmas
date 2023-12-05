@@ -2,6 +2,7 @@ package slowxmas.Entity;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -13,4 +14,6 @@ public class User {
     private Long kakaoId;
 
     private String nickname;
+
+    private LocalDateTime created;
 }

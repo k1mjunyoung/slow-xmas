@@ -13,10 +13,13 @@ import slowxmas.Service.UserSerivce;
 public class LoginController {
     private final UserSerivce userSerivce;
 
+    public static User nowUser;
+
     @GetMapping("/login/kakao/callback")
     public String kakaoCallback(Model model, @RequestParam String code) {
         String accessToken = this.userSerivce.getKakaoAccessToken(code);
         User user = this.userSerivce.getKakaoUserInfo(accessToken);
+        nowUser = user;
 
         model.addAttribute("user", user);
 
