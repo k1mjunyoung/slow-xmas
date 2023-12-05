@@ -9,16 +9,19 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import org.springframework.beans.factory.annotation.Value;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import slowxmas.Entity.User;
+import slowxmas.Repository.UserRepository;
 
 @Service
+@RequiredArgsConstructor
 public class UserSerivce {
-    @Value("${kakao.rest-api-key}")
-    String REST_API_KEY;
+    static final String REST_API_KEY = "55ab9b90f6fe66c4c4543273c83d5145";
 
-    @Value("${kakao.redirect-url}")
-    String REDIRECT_URL;
+    static final String REDIRECT_URL = "http://localhost:8080/login/kakao/callback";
+
+    private final UserRepository userRepository;
 
     public String getKakaoAccessToken(String code) {
         String accessToken = "";
@@ -74,8 +77,10 @@ public class UserSerivce {
         return accessToken;
     }
 
-    public void createKakaoUser(String token) {
+    public User getKakaoUserInfo(String token) {
         String requestUrl = "https://kapi.kakao.com/v2/user/me";
+
+        User user = new User();
 
         try {
             URL url = new URL(requestUrl);
@@ -104,17 +109,35 @@ public class UserSerivce {
             String nickname = "";
 
             nickname = element.getAsJsonObject().get("properties").getAsJsonObject().get("nickname").getAsString();
-            /*boolean hasEmail = element.getAsJsonObject().get("kakao_account").getAsJsonObject().get("name").getAsBoolean();
-            if (hasEmail) {
-                nickname = element.getAsJsonObject().get("kakao_account").getAsJsonObject().get("email").getAsString();
-            }*/
 
             System.out.println("id = " + id);
             System.out.println("email = " + nickname);
+
+            if (this.userRepository.findById(id).isEmpty()) {
+                saveKakaoUser(id, nickname);
+            }
+
+            user = loadKakaoUser(id);
 
             br.close();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+
+        return user;
+    }
+
+    public void saveKakaoUser(Long id, String nickname) {
+        User user = new User();
+
+        user.setKakaoId(id);
+        user.setNickname(nickname);
+        this.userRepository.save(user);
+    }
+
+    public User loadKakaoUser(Long id) {
+        User user = this.userRepository.findByKakaoId(id);
+
+        return user;
     }
 }

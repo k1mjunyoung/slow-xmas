@@ -5,7 +5,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
+import slowxmas.Entity.User;
 import slowxmas.Service.UserSerivce;
 
 @Controller
@@ -14,9 +14,13 @@ public class LoginController {
     private final UserSerivce userSerivce;
 
     @GetMapping("/login/kakao/callback")
-    public void kakaoCallback(@RequestParam String code) {
+    public String kakaoCallback(Model model, @RequestParam String code) {
         String accessToken = this.userSerivce.getKakaoAccessToken(code);
-        this.userSerivce.createKakaoUser(accessToken);
+        User user = this.userSerivce.getKakaoUserInfo(accessToken);
+
+        model.addAttribute("user", user);
+
+        return "/main";
     }
 
 
